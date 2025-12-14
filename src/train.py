@@ -4,6 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score
 import joblib
 import warnings
+import os
 
 warnings.filterwarnings('ignore')
 
@@ -22,12 +23,21 @@ def train_model():
     """
     print("Starting model training process...")
 
+    # Define paths relative to the script's directory
+    script_dir = os.path.dirname(__file__)
+    project_root = os.path.abspath(os.path.join(script_dir, '..')) # Go up one level from src/
+    data_path = os.path.join(project_root, 'data', 'ai4i2020.csv')
+    models_dir = os.path.join(project_root, 'models')
+
+    # Ensure the models directory exists
+    os.makedirs(models_dir, exist_ok=True)
+
     # 1. Load Data
     try:
-        df = pd.read_csv('../data/ai4i2020.csv')
+        df = pd.read_csv(data_path)
         print("Dataset loaded successfully.")
     except FileNotFoundError:
-        print("Error: 'ai4i2020.csv' not found. Make sure it is in the 'data/' directory.")
+        print(f"Error: '{data_path}' not found. Make sure it is in the 'data/' directory.")
         return
 
     # 2. Preprocess Data
@@ -42,8 +52,8 @@ def train_model():
     
     # Store column order for the prediction script
     model_columns = X.columns
-    joblib.dump(model_columns, '../models/model_columns.joblib')
-    print("Model columns saved to 'models/model_columns.joblib'.")
+    joblib.dump(model_columns, os.path.join(models_dir, 'model_columns.joblib'))
+    print(f"Model columns saved to '{os.path.join(models_dir, 'model_columns.joblib')}'.")
 
     # 3. Split Data
     # stratify=y ensures the same proportion of failures in train and test sets
@@ -61,15 +71,14 @@ def train_model():
     print("\n--- Model Evaluation ---")
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
-    print(f"Model Accuracy: {accuracy * 100:.2f}%
-")
+    print(f"Model Accuracy: {accuracy * 100:.2f}%\n")
     print("Classification Report:")
     print(classification_report(y_test, y_pred))
     print("------------------------\n")
 
     # 6. Save Model
-    joblib.dump(model, '../models/predictive_model.joblib')
-    print("Trained model saved successfully as 'models/predictive_model.joblib'.")
+    joblib.dump(model, os.path.join(models_dir, 'predictive_model.joblib'))
+    print(f"Trained model saved successfully as '{os.path.join(models_dir, 'predictive_model.joblib')}'.")
 
 if __name__ == '__main__':
     train_model()

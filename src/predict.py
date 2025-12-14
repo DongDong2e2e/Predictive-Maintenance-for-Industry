@@ -1,56 +1,85 @@
 import joblib
 import pandas as pd
+import os
+
+def get_validated_input(prompt: str, input_type: type = float):
+    """
+    Prompts the user for input and validates it against the specified type.
+    Loops until a valid input is received.
+
+    Args:
+        prompt (str): The message to display to the user.
+        input_type (type): The desired type of the input (e.g., float, str).
+
+    Returns:
+        The validated user input of the specified type.
+    """
+    while True:
+        user_input = input(prompt)
+        if input_type == float:
+            try:
+                return float(user_input)
+            except ValueError:
+                print("Invalid input. Please enter a numeric value.")
+        elif input_type == str:
+            # For machine type, validate against specific allowed values
+            allowed_values = ['H', 'M', 'L']
+            if user_input.upper() in allowed_values:
+                return user_input.upper()
+            else:
+                print(f"Invalid input. Please enter one of {', '.join(allowed_values)}.")
+        else:
+            return user_input
 
 def predict_failure():
     """
     This function loads a pre-trained model and predicts machine failure based on user input.
-    Steps:
-    1. Loads the trained RandomForest model and the model columns.
-    2. Prompts the user to enter sensor values for prediction.
-    3. Creates a DataFrame from the user input.
-    4. Ensures the input DataFrame has the correct columns and order.
-    5. Predicts the failure status and the probability.
-    6. Displays the prediction to the user.
+    It now includes robust input validation.
     """
     print("--- Machine Failure Prediction ---")
     
+    # Define paths relative to the script's directory for robustness
+    script_dir = os.path.dirname(__file__)
+    project_root = os.path.abspath(os.path.join(script_dir, '..')) # Go up one level from src/
+    models_dir = os.path.join(project_root, 'models')
+
     # 1. Load Model and Columns
     try:
-        model = joblib.load('../models/predictive_model.joblib')
-        model_columns = joblib.load('../models/model_columns.joblib')
+        model_path = os.path.join(models_dir, 'predictive_model.joblib')
+        columns_path = os.path.join(models_dir, 'model_columns.joblib')
+        model = joblib.load(model_path)
+        model_columns = joblib.load(columns_path)
         print("Trained model and columns loaded successfully.")
     except FileNotFoundError:
         print("\nError: Model files not found.")
         print("Please run 'python src/train.py' first to train and save the model.")
         return
 
-    # 2. Get User Input
+    # 2. Get User Input with Validation
     print("\nPlease enter the following sensor values:")
     
     input_data = {
-        'Air temperature [K]': [float(input("- Air temperature [K]: "))],
-        'Process temperature [K]': [float(input("- Process temperature [K]: "))],
-        'Rotational speed [rpm]': [float(input("- Rotational speed [rpm]: "))],
-        'Torque [Nm]': [float(input("- Torque [Nm]: "))],
-        'Tool wear [min]': [float(input("- Tool wear [min]: "))]
+        'Air temperature [K]': [get_validated_input("- Air temperature [K]: ")],
+        'Process temperature [K]': [get_validated_input("- Process temperature [K]: ")],
+        'Rotational speed [rpm]': [get_validated_input("- Rotational speed [rpm]: ")],
+        'Torque [Nm]': [get_validated_input("- Torque [Nm]: ")],
+        'Tool wear [min]': [get_validated_input("- Tool wear [min]: ")]
     }
     
-    # For the 'Type' feature, which was one-hot encoded
-    type_input = input("- Machine Type (H, M, or L): ").upper()
+    type_input = get_validated_input("- Machine Type (H, M, or L): ", str)
     
     # Set the one-hot encoded columns based on user input
-    input_data['Type_L'] = [1 if type_input == 'L' else 0]
-    input_data['Type_M'] = [1 if type_input == 'M' else 0]
+    input_data['Type_L'] = 1 if type_input == 'L' else 0
+    input_data['Type_M'] = 1 if type_input == 'M' else 0
 
     # 3. Create DataFrame
     input_df = pd.DataFrame(input_data)
 
     # 4. Align DataFrame Columns
-    # Ensure the input_df has the same columns in the same order as the training data
     query_df = pd.DataFrame(columns=model_columns)
     query_df = pd.concat([query_df, input_df], ignore_index=True, sort=False)
-    query_df = query_df.fillna(0) # Fill any missing columns with 0
-    query_df = query_df[model_columns] # Enforce column order
+    query_df = query_df.fillna(0)
+    query_df = query_df[model_columns]
 
     # 5. Make Prediction
     prediction = model.predict(query_df)
