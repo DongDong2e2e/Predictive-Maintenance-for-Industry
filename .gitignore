@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# Machine Learning Models
+*.joblib
+*.pkl
+models/
+
+# Jupyter Notebook specific
+.ipynb_checkpoints/
